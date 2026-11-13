@@ -4,7 +4,6 @@ SmartLearn is a role based learning management system for publishing courses, gu
 
 ## Table of contents
 
-- [Project presentation and speaking script](docs/README.md)
 - [Features](#features)
 - [Roles and permissions](#roles-and-permissions)
 - [Business and learning workflow](#business-and-learning-workflow)
