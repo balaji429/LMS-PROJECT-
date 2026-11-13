@@ -1,4 +1,4 @@
-import * as React from "react"
+// Reusable input component primitives for forms.
 import { cn } from "cn"
 import {
   composeRenderProps,

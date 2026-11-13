@@ -1,3 +1,5 @@
+// Reusable button variants and button component primitives.
+/* eslint-disable react-refresh/only-export-components */
 import { cva } from "class-variance-authority";
 import { cn } from "cn"
 import { Button as ButtonPrimitive, Link as LinkPrimitive } from "react-aria-components";

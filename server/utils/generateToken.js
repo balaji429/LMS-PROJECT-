@@ -1,8 +1,9 @@
+// Authentication cookie and signed session token helper.
 import jwt from "jsonwebtoken";
 
 const generateToken = (res, user, message) => {
     const token = jwt.sign(
-        { userId: user._id },
+        { userId: user._id, version: user.authVersion || 0 },
         process.env.JWT_SECRET,
         { expiresIn: "1d" }
     );
@@ -11,7 +12,8 @@ const generateToken = (res, user, message) => {
         .status(200)
         .cookie("token", token, {
             httpOnly: true,
-            sameSite: "strict",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+            secure: process.env.NODE_ENV === "production",
             maxAge: 24 * 60 * 60 * 1000
         })
         .json({

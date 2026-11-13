@@ -1,3 +1,4 @@
+// ESLint rules for the React client source.
 import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'

@@ -1,3 +1,4 @@
+// Mongoose schema for LMS user accounts and sessions.
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
@@ -19,9 +20,13 @@ const userSchema = new mongoose.Schema({
 
     role: {
         type: String,
-        enum: ["student", "instructor"],
+        enum: ["student", "teacher", "admin"],
         default: "student"
     },
+
+    isActive: { type: Boolean, default: true },
+    emailVerified: { type: Boolean, default: true },
+    authVersion: { type: Number, default: 0 },
 
     enrolledCourses: [
         {
@@ -29,6 +34,8 @@ const userSchema = new mongoose.Schema({
             ref: "Course"
         }
     ],
+
+    completedLessons: [{ type: mongoose.Schema.Types.ObjectId, ref: "Lesson" }],
 
     photoURL: {
         type: String,
