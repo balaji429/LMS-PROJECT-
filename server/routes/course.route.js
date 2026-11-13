@@ -4,7 +4,7 @@ import { requireAuth, allowRoles } from "../middleware/auth.js";
 import { listCourses, listLearners, getCourse, listCourseStudents, createCourse, updateCourse, deleteCourse, addLesson, updateLesson, deleteLesson, uploadCourseResource, deleteCourseResource, enroll, markLessonComplete } from "../controllers/course.controller.js";
 import { listQuizzes, createQuiz } from "../controllers/quiz.controller.js";
 import { createAnnouncement } from "../controllers/communication.controller.js";
-import { uploadFile } from "../middleware/upload.js";
+import { uploadFile, uploadLessonVideo } from "../middleware/upload.js";
 
 const router = express.Router();
 router.use(requireAuth);
@@ -18,8 +18,8 @@ router.post("/:courseId/announcements", allowRoles("teacher", "admin"), createAn
 router.post("/", allowRoles("teacher", "admin"), createCourse);
 router.patch("/:id", allowRoles("teacher", "admin"), updateCourse);
 router.delete("/:id", allowRoles("teacher", "admin"), deleteCourse);
-router.post("/:id/lessons", allowRoles("teacher", "admin"), addLesson);
-router.patch("/:id/lessons/:lessonId", allowRoles("teacher", "admin"), updateLesson);
+router.post("/:id/lessons", allowRoles("teacher", "admin"), uploadLessonVideo.single("video"), addLesson);
+router.patch("/:id/lessons/:lessonId", allowRoles("teacher", "admin"), uploadLessonVideo.single("video"), updateLesson);
 router.delete("/:id/lessons/:lessonId", allowRoles("teacher", "admin"), deleteLesson);
 router.post("/:id/resources", allowRoles("teacher", "admin"), uploadFile.single("file"), uploadCourseResource);
 router.delete("/:id/resources/:resourceId", allowRoles("teacher", "admin"), deleteCourseResource);

@@ -1,4 +1,5 @@
 // Validated local file upload configuration and storage.
+import "dotenv/config";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -19,9 +20,16 @@ const allowedTypes = new Map([
   ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx"],
 ]);
 
+const allowedVideoTypes = new Map([
+  ["video/mp4", ".mp4"],
+  ["video/webm", ".webm"],
+  ["video/ogg", ".ogv"],
+  ["video/quicktime", ".mov"],
+]);
+
 const storage = multer.diskStorage({
   destination: (_req, _file, callback) => callback(null, uploadDirectory),
-  filename: (_req, file, callback) => callback(null, `${crypto.randomUUID()}${allowedTypes.get(file.mimetype) || ".bin"}`),
+  filename: (_req, file, callback) => callback(null, `${crypto.randomUUID()}${allowedTypes.get(file.mimetype) || allowedVideoTypes.get(file.mimetype) || ".bin"}`),
 });
 
 export const uploadFile = multer({
@@ -30,6 +38,20 @@ export const uploadFile = multer({
   fileFilter: (_req, file, callback) => {
     if (!allowedTypes.has(file.mimetype)) {
       const error = new Error("Unsupported file type. Upload PDF, Office, text, CSV, or image files.");
+      error.status = 400;
+      return callback(error);
+    }
+    callback(null, true);
+  },
+});
+
+// Lesson videos have a separate limit because they are much larger than documents.
+export const uploadLessonVideo = multer({
+  storage,
+  limits: { fileSize: Number(process.env.MAX_VIDEO_MB || 500) * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, callback) => {
+    if (!allowedVideoTypes.has(file.mimetype)) {
+      const error = new Error("Unsupported video type. Upload MP4, WebM, OGG, or MOV.");
       error.status = 400;
       return callback(error);
     }

@@ -4,6 +4,7 @@ SmartLearn is a role based learning management system for publishing courses, gu
 
 ## Table of contents
 
+- [Project presentation and speaking script](docs/README.md)
 - [Features](#features)
 - [Roles and permissions](#roles-and-permissions)
 - [Business and learning workflow](#business-and-learning-workflow)
@@ -23,7 +24,7 @@ SmartLearn is a role based learning management system for publishing courses, gu
 - Course catalog with search, categories, course level, instructor, and publication status.
 - Teacher and admin course creation and editing. Admins can assign a course to an active teacher.
 - Draft and published course states. Students can discover and enroll in published courses; lesson content is available after enrollment.
-- Lessons with module/unit names, written notes, descriptions, and external video links.
+- Lessons with module/unit names, written notes, descriptions, external video links, and teacher-uploaded MP4, WebM, OGG, or MOV videos. Enrolled learners can stream uploaded videos in the lesson page.
 - Student lesson completion tracking and per-course learner progress.
 - Teacher course rosters and a learner overview across courses.
 
@@ -101,7 +102,7 @@ flowchart TD
 ### 3. Student enrollment and learning
 
 1. A student selects a published course and enrolls. Enrollment is recorded on the student account.
-2. Enrolled students open lessons, read content or follow external video links, and mark lessons complete. Completion is saved against the student account and used for course progress views.
+2. Enrolled students open lessons, read content, play teacher-uploaded videos or follow external video links, and mark lessons complete. Completion is saved against the student account and used for course progress views.
 3. Students can download course resources, take published quizzes, read course announcements, and participate in the course discussion.
 4. Their **My learning**, **Schedule**, **Assignments**, and **Grades** pages summarize enrolled courses, due dates, work status, scores, and teacher feedback.
 
@@ -152,8 +153,8 @@ The account pages `/reset-password` and `/verify-email` handle emailed account l
 
 ## Files, quizzes, and communications
 
-- Supported upload types: PDF, DOCX, PPTX, XLSX, plain text, CSV, PNG, JPEG, and WebP.
-- The default maximum upload size is 20 MB and can be changed with `MAX_UPLOAD_MB`.
+- Course resources accept PDF, DOCX, PPTX, XLSX, plain text, CSV, PNG, JPEG, and WebP. Assignment submissions and profile photos use their own restricted file types.
+- The default maximum document upload size is 20 MB (`MAX_UPLOAD_MB`). Lesson videos accept MP4, WebM, OGG, and MOV, up to 500 MB by default (`MAX_VIDEO_MB`).
 - Uploaded files are stored on the API server in `UPLOAD_DIR`, defaulting to `server/uploads`. The database stores the file metadata and access relationships; downloads require a valid session and the appropriate course access.
 - SMTP configuration is optional. Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, and `EMAIL_FROM` to send verification and recovery emails.
 - Quiz answers are scored by the API. Students do not receive correct answers before submitting an attempt.
@@ -195,7 +196,7 @@ The API listens on `http://localhost:8080` by default. Check `GET http://localho
 ### Optional email and file configuration
 
 - Add the SMTP settings listed above to `server/.env` to deliver email verification and password reset links. In development without SMTP, the reset response contains a link for local testing.
-- Set `UPLOAD_DIR` to change the local upload folder and `MAX_UPLOAD_MB` to change the size limit. Back up this folder together with MongoDB. A multi-instance deployment needs shared object storage or a replacement upload adapter.
+- Set `UPLOAD_DIR` to change the local upload folder, `MAX_UPLOAD_MB` to change the document size limit, and `MAX_VIDEO_MB` to change the lesson video size limit. Back up this folder together with MongoDB. A multi-instance deployment needs shared object storage or a replacement upload adapter.
 - Set `CLIENT_URL` to the exact frontend origin accepted by the API. The default is `http://localhost:5173`.
 
 ## Commands and verification
@@ -230,7 +231,7 @@ All endpoints below are prefixed by `/api/v1`. Authenticated requests use the HT
 | Lessons and enrollment | `POST /courses/:id/lessons`, `PATCH/DELETE /courses/:id/lessons/:lessonId`, `POST /courses/:id/enroll`, `POST /courses/:id/lessons/:lessonId/complete` | Course owner/admin manages lessons; published-course student enrolls; enrolled student tracks progress |
 | Rosters | `GET /courses/students`, `GET /courses/:id/students` | Teacher for their courses; admin for all courses |
 | Assignments | `GET /assignments`, `POST /assignments/course/:courseId`, `PATCH/DELETE /assignments/:id`, `POST /assignments/:id/submit`, `PATCH /assignments/:id/submissions/:submissionId` | Course owner/admin manages and grades; enrolled students submit; deletion is blocked when submissions exist |
-| Resources | `POST /courses/:id/resources`, `DELETE /courses/:id/resources/:resourceId`, `GET /resources/:id/download` | Course owner/admin uploads and deletes; downloads require course access |
+| Course files and lesson videos | `POST /courses/:id/resources`, `DELETE /courses/:id/resources/:resourceId`, multipart `POST/PATCH /courses/:id/lessons[/:lessonId]`, `GET /resources/:id/download`, `GET /resources/:id/video` | Course owner/admin uploads and manages; students must be enrolled to stream lesson videos or download resources |
 | Quizzes | `GET /courses/:courseId/quizzes`, `POST /courses/:courseId/quizzes`, `PATCH /assignments/quizzes/:id`, `POST /quizzes/:id/attempt`, `GET /assignments/quizzes/:id/attempts` | Course staff manage; enrolled students attempt and view their own results |
 | Announcements | `GET /communication/announcements`, `POST /courses/:courseId/announcements`, `PATCH/DELETE /communication/announcements/:id` | Teachers manage their own announcements for owned courses; admins can manage all |
 | Discussion | `GET/POST /communication/courses/:courseId/messages` | Enrolled students, course teacher, or admin |
@@ -244,4 +245,4 @@ All endpoints below are prefixed by `/api/v1`. Authenticated requests use the HT
 
 ## Current scope
 
-SmartLearn currently supports course based learning, lessons, structured short/long response assignments, multiple choice quizzes, shared course announcements and discussions, and local file uploads. Payments, certificates, live video classes, private messaging, calendar integrations, and cloud object storage are not implemented.
+SmartLearn currently supports course based learning, lessons with external video links or local uploaded video files, structured short/long response assignments, multiple choice quizzes, shared course announcements and discussions, and local file uploads. Payments, certificates, live video classes, private messaging, calendar integrations, and cloud object storage are not implemented.

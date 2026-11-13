@@ -6,6 +6,7 @@ const lessonSchema = new mongoose.Schema({
   description: { type: String, default: "" },
   moduleTitle: { type: String, default: "Course lessons", trim: true },
   videoUrl: { type: String, default: "" },
+  videoResourceId: { type: mongoose.Schema.Types.ObjectId, default: null },
   content: { type: String, default: "" },
   order: { type: Number, default: 0 },
 }, { timestamps: true });

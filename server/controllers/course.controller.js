@@ -92,6 +92,43 @@ export const uploadCourseResource = async (req, res) => {
   res.status(201).json({ resource, message: "Course resource uploaded." });
 };
 
+const saveLessonVideo = async (course, lesson, file, user) => {
+  if (!file) return;
+  const previousId = lesson.videoResourceId;
+  let resource;
+  try {
+    resource = await Resource.create({
+      course: course._id, lessonId: lesson._id, createdBy: user._id, kind: "lesson-video",
+      title: path.parse(file.originalname).name,
+      originalName: path.basename(file.originalname), storedName: file.filename,
+      mimeType: file.mimetype, size: file.size,
+    });
+  } catch (error) {
+    removeUploadedFile(file.filename);
+    throw error;
+  }
+  lesson.videoResourceId = resource._id;
+  lesson.videoUrl = "";
+  try {
+    await course.save();
+  } catch (error) {
+    await resource.deleteOne();
+    removeUploadedFile(file.filename);
+    throw error;
+  }
+  if (previousId) {
+    const previous = await Resource.findOneAndDelete({ _id: previousId, course: course._id, kind: "lesson-video" });
+    if (previous) removeUploadedFile(previous.storedName);
+  }
+};
+
+const removeLessonVideo = async (lesson, courseId) => {
+  if (!lesson.videoResourceId) return;
+  const resource = await Resource.findOneAndDelete({ _id: lesson.videoResourceId, course: courseId, kind: "lesson-video" });
+  if (resource) removeUploadedFile(resource.storedName);
+  lesson.videoResourceId = null;
+};
+
 export const deleteCourseResource = async (req, res) => {
   const resource = await Resource.findOne({ _id: req.params.resourceId, course: req.params.id, kind: "course-resource" });
   if (!resource) return res.status(404).json({ message: "Resource not found." });
@@ -115,6 +152,23 @@ export const downloadResource = async (req, res) => {
   } else if (!owns(course, req.user)) return res.status(403).json({ message: "You cannot access this file." });
   res.download(path.join(uploadDirectory, resource.storedName), path.basename(resource.originalName), (error) => {
     if (error && !res.headersSent) res.status(404).json({ message: "File not found on the server." });
+  });
+};
+
+export const streamLessonVideo = async (req, res) => {
+  const resource = await Resource.findOne({ _id: req.params.id, kind: "lesson-video" });
+  if (!resource) return res.status(404).json({ message: "Lesson video not found." });
+  const course = await Course.findById(resource.course).select("instructor");
+  if (!course) return res.status(404).json({ message: "Course not found." });
+  const enrolled = req.user.role === "student" && req.user.enrolledCourses.some((id) => String(id) === String(course._id));
+  if (req.user.role === "student" ? !enrolled : !owns(course, req.user)) {
+    return res.status(403).json({ message: "You cannot access this lesson video." });
+  }
+  res.setHeader("Content-Type", resource.mimeType);
+  res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(path.basename(resource.originalName))}`);
+  res.setHeader("Cache-Control", "private, no-store");
+  res.sendFile(path.join(uploadDirectory, resource.storedName), (error) => {
+    if (error && !res.headersSent) res.status(404).json({ message: "Lesson video file is missing from the server." });
   });
 };
 
@@ -174,22 +228,24 @@ export const deleteCourse = async (req, res) => {
 
 export const addLesson = async (req, res) => {
   const course = await Course.findById(req.params.id);
-  if (!course) return res.status(404).json({ message: "Course not found." });
-  if (!owns(course, req.user)) return res.status(403).json({ message: "You cannot edit this course." });
-  if (!req.body.title?.trim()) return res.status(400).json({ message: "Lesson title is required." });
+  if (!course) { if (req.file) removeUploadedFile(req.file.filename); return res.status(404).json({ message: "Course not found." }); }
+  if (!owns(course, req.user)) { if (req.file) removeUploadedFile(req.file.filename); return res.status(403).json({ message: "You cannot edit this course." }); }
+  if (!req.body.title?.trim()) { if (req.file) removeUploadedFile(req.file.filename); return res.status(400).json({ message: "Lesson title is required." }); }
   course.lessons.push({ title: req.body.title, moduleTitle: req.body.moduleTitle, description: req.body.description, content: req.body.content, videoUrl: req.body.videoUrl, order: course.lessons.length });
-  await course.save();
+  const lesson = course.lessons[course.lessons.length - 1];
+  if (req.file) await saveLessonVideo(course, lesson, req.file, req.user);
+  else await course.save();
   res.status(201).json({ course, message: "Lesson added." });
 };
 
 export const updateLesson = async (req, res) => {
   const course = await Course.findById(req.params.id);
-  if (!course) return res.status(404).json({ message: "Course not found." });
-  if (!owns(course, req.user)) return res.status(403).json({ message: "You cannot edit this course." });
+  if (!course) { if (req.file) removeUploadedFile(req.file.filename); return res.status(404).json({ message: "Course not found." }); }
+  if (!owns(course, req.user)) { if (req.file) removeUploadedFile(req.file.filename); return res.status(403).json({ message: "You cannot edit this course." }); }
   const lesson = course.lessons.id(req.params.lessonId);
-  if (!lesson) return res.status(404).json({ message: "Lesson not found." });
+  if (!lesson) { if (req.file) removeUploadedFile(req.file.filename); return res.status(404).json({ message: "Lesson not found." }); }
   if (req.body.title !== undefined) {
-    if (typeof req.body.title !== "string" || !req.body.title.trim()) return res.status(400).json({ message: "Lesson title is required." });
+    if (typeof req.body.title !== "string" || !req.body.title.trim()) { if (req.file) removeUploadedFile(req.file.filename); return res.status(400).json({ message: "Lesson title is required." }); }
     lesson.title = req.body.title.trim();
   }
   for (const key of ["moduleTitle", "description", "content", "videoUrl"]) {
@@ -197,11 +253,17 @@ export const updateLesson = async (req, res) => {
   }
   if (req.body.order !== undefined) {
     const order = Number(req.body.order);
-    if (!Number.isInteger(order) || order < 0) return res.status(400).json({ message: "Lesson order must be a non-negative whole number." });
+    if (!Number.isInteger(order) || order < 0) { if (req.file) removeUploadedFile(req.file.filename); return res.status(400).json({ message: "Lesson order must be a non-negative whole number." }); }
     lesson.order = order;
   }
   course.lessons.sort((left, right) => left.order - right.order);
-  await course.save();
+  if (req.file) {
+    await saveLessonVideo(course, lesson, req.file, req.user);
+  } else {
+    if (req.body.videoUrl?.trim()) await removeLessonVideo(lesson, course._id);
+    if (req.body.removeVideo === "true") await removeLessonVideo(lesson, course._id);
+    await course.save();
+  }
   res.json({ course, message: "Lesson updated." });
 };
 
@@ -216,10 +278,11 @@ export const deleteLesson = async (req, res) => {
   lesson.deleteOne();
   course.lessons.forEach((item, index) => { item.order = index; });
   await Promise.all([
-    course.save(),
+    removeLessonVideo(lesson, course._id),
     User.updateMany({}, { $pull: { completedLessons: lessonId } }),
     Resource.deleteMany({ course: course._id, lessonId }),
   ]);
+  await course.save();
   for (const resource of resources) removeUploadedFile(resource.storedName);
   res.json({ course, message: "Lesson deleted." });
 };

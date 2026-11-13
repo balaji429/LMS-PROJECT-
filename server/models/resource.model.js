@@ -7,7 +7,7 @@ const resourceSchema = new mongoose.Schema({
   assignment: { type: mongoose.Schema.Types.ObjectId, ref: "Assignment", default: null, index: true },
   student: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  kind: { type: String, enum: ["course-resource", "assignment-submission"], required: true },
+  kind: { type: String, enum: ["course-resource", "assignment-submission", "lesson-video"], required: true },
   title: { type: String, required: true, trim: true },
   originalName: { type: String, required: true },
   storedName: { type: String, required: true, unique: true },
